@@ -1,35 +1,72 @@
 import SwiftUI
 
 struct AnimatedMeshBackground: View {
-    @State private var phase: CGFloat = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    
+    private var useStaticBackground: Bool {
+        AppPerformance.useLiteEffects || reduceMotion
+    }
     
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1 / 30)) { timeline in
+        Group {
+            if useStaticBackground {
+                staticBackground
+            } else {
+                animatedBackground
+            }
+        }
+        .ignoresSafeArea()
+    }
+    
+    private var staticBackground: some View {
+        ZStack {
+            LinearGradient(
+                colors: [
+                    Color(red: 0.10, green: 0.07, blue: 0.22),
+                    Color(red: 0.14, green: 0.08, blue: 0.26),
+                    Color(red: 0.05, green: 0.05, blue: 0.12)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            
+            RadialGradient(
+                colors: [AppTheme.accent.opacity(0.4), .clear],
+                center: .topLeading,
+                startRadius: 20,
+                endRadius: 320
+            )
+            
+            RadialGradient(
+                colors: [AppTheme.accentSecondary.opacity(0.3), .clear],
+                center: .bottomTrailing,
+                startRadius: 10,
+                endRadius: 280
+            )
+        }
+    }
+    
+    private var animatedBackground: some View {
+        TimelineView(.animation(minimumInterval: 1 / 20)) { timeline in
             let t = timeline.date.timeIntervalSinceReferenceDate
             
             Canvas { context, size in
-                let colors: [Color] = [
-                    Color(red: 0.12, green: 0.08, blue: 0.28),
-                    Color(red: 0.22, green: 0.10, blue: 0.38),
-                    Color(red: 0.08, green: 0.14, blue: 0.32),
-                    Color(red: 0.18, green: 0.06, blue: 0.22)
-                ]
-                
                 context.fill(
                     Path(CGRect(origin: .zero, size: size)),
                     with: .linearGradient(
-                        Gradient(colors: [colors[0], Color(red: 0.05, green: 0.05, blue: 0.12)]),
+                        Gradient(colors: [
+                            Color(red: 0.12, green: 0.08, blue: 0.28),
+                            Color(red: 0.05, green: 0.05, blue: 0.12)
+                        ]),
                         startPoint: .zero,
                         endPoint: CGPoint(x: size.width, y: size.height)
                     )
                 )
                 
-                drawOrb(context: context, size: size, t: t, index: 0, color: AppTheme.accent.opacity(0.55))
-                drawOrb(context: context, size: size, t: t, index: 1, color: AppTheme.accentSecondary.opacity(0.45))
-                drawOrb(context: context, size: size, t: t, index: 2, color: Color.cyan.opacity(0.25))
+                drawOrb(context: context, size: size, t: t, index: 0, color: AppTheme.accent.opacity(0.5))
+                drawOrb(context: context, size: size, t: t, index: 1, color: AppTheme.accentSecondary.opacity(0.4))
             }
         }
-        .ignoresSafeArea()
     }
     
     private func drawOrb(context: GraphicsContext, size: CGSize, t: TimeInterval, index: Int, color: Color) {

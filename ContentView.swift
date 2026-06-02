@@ -210,7 +210,7 @@ struct ContentView: View {
                             endPoint: .bottomTrailing
                         )
                     )
-                    .symbolEffect(.pulse.byLayer, options: .repeating)
+                    .symbolEffect(.pulse.byLayer, options: AppPerformance.useLiteEffects ? .nonRepeating : .repeating)
             }
             
             VStack(spacing: 8) {
@@ -282,12 +282,6 @@ struct ContentView: View {
         SubscriptionRow(subscription: subscription)
             .listRowBackground(Color.clear)
             .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
-            .scrollTransition(.animated(.spring(response: 0.4, dampingFraction: 0.8))) { content, phase in
-                content
-                    .scaleEffect(phase.isIdentity ? 1 : 0.94)
-                    .opacity(phase.isIdentity ? 1 : 0.55)
-                    .blur(radius: phase.isIdentity ? 0 : 2)
-            }
             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                 Button(role: .destructive) {
                     Haptics.medium()
@@ -315,11 +309,6 @@ struct ContentView: View {
         SubscriptionRow(subscription: subscription)
             .listRowBackground(Color.clear)
             .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
-            .scrollTransition(.animated(.spring(response: 0.4, dampingFraction: 0.8))) { content, phase in
-                content
-                    .scaleEffect(phase.isIdentity ? 1 : 0.94)
-                    .opacity(phase.isIdentity ? 1 : 0.55)
-            }
             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                 Button(role: .destructive) {
                     Haptics.medium()

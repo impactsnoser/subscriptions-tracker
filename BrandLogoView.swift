@@ -23,9 +23,14 @@ struct BrandLogoView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             }
         }
-        .shadow(color: (brand?.accentColor ?? style.color).opacity(glow ? 0.55 : 0.25), radius: glow ? 14 : 6)
+        .shadow(
+            color: (brand?.accentColor ?? style.color).opacity(
+                AppPerformance.useLiteEffects ? 0.2 : (glow ? 0.45 : 0.2)
+            ),
+            radius: AppPerformance.useLiteEffects ? 4 : (glow ? 10 : 5)
+        )
         .onAppear {
-            guard animate else { return }
+            guard animate, !AppPerformance.useLiteEffects else { return }
             withAnimation(.easeInOut(duration: 2.2).repeatForever(autoreverses: true)) {
                 glow = true
             }

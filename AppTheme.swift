@@ -36,42 +36,53 @@ struct GlassCard: ViewModifier {
     var cornerRadius: CGFloat = 20
     var padding: CGFloat = 0
     
+    private var lite: Bool { AppPerformance.useLiteEffects }
+    
     func body(content: Content) -> some View {
         content
             .padding(padding)
             .background {
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(.ultraThinMaterial)
-                    .background(
+                Group {
+                    if lite {
                         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                             .fill(
                                 LinearGradient(
                                     colors: [
-                                        Color.white.opacity(0.12),
-                                        Color.white.opacity(0.03)
+                                        Color.white.opacity(0.11),
+                                        Color.white.opacity(0.05)
                                     ],
                                     startPoint: .topLeading,
                                     endPoint: .bottomTrailing
                                 )
                             )
-                    )
-                    .overlay(
+                    } else {
                         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                            .strokeBorder(
-                                LinearGradient(
-                                    colors: [
-                                        Color.white.opacity(0.35),
-                                        Color.white.opacity(0.06),
-                                        Color.white.opacity(0.02)
-                                    ],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: 1
+                            .fill(.ultraThinMaterial)
+                            .background(
+                                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [
+                                                Color.white.opacity(0.12),
+                                                Color.white.opacity(0.03)
+                                            ],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        )
+                                    )
                             )
-                    )
+                    }
+                }
+                .overlay(
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .strokeBorder(Color.white.opacity(lite ? 0.14 : 0.22), lineWidth: 1)
+                )
             }
-            .shadow(color: AppTheme.glow.opacity(0.15), radius: 20, y: 10)
+            .shadow(
+                color: AppTheme.glow.opacity(lite ? 0.08 : 0.15),
+                radius: lite ? 8 : 16,
+                y: lite ? 4 : 8
+            )
     }
 }
 

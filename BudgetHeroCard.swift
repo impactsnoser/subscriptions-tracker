@@ -54,7 +54,7 @@ struct BudgetHeroCard: View {
                                 )
                             )
                             .frame(width: max(geo.size.width * budgetBarProgress, 12))
-                            .shadow(color: AppTheme.glow.opacity(0.6), radius: 8)
+                            .shadow(color: AppTheme.glow.opacity(AppPerformance.useLiteEffects ? 0.25 : 0.5), radius: 6)
                     }
                 }
                 .frame(height: 6)
@@ -63,19 +63,22 @@ struct BudgetHeroCard: View {
         .padding(22)
         .glassCard(cornerRadius: 28)
         .overlay {
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [.clear, .white.opacity(0.15), .clear],
-                        startPoint: UnitPoint(x: shimmer, y: 0),
-                        endPoint: UnitPoint(x: shimmer + 0.35, y: 1)
+            if !AppPerformance.useLiteEffects {
+                RoundedRectangle(cornerRadius: 28, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [.clear, .white.opacity(0.12), .clear],
+                            startPoint: UnitPoint(x: shimmer, y: 0),
+                            endPoint: UnitPoint(x: shimmer + 0.35, y: 1)
+                        )
                     )
-                )
-                .allowsHitTesting(false)
+                    .allowsHitTesting(false)
+            }
         }
         .padding(.horizontal, 16)
         .onAppear {
             animateAmount(to: totalMonthly)
+            guard !AppPerformance.useLiteEffects else { return }
             withAnimation(.linear(duration: 2.8).repeatForever(autoreverses: false)) {
                 shimmer = 1.4
             }

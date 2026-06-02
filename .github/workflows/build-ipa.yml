@@ -1,0 +1,65 @@
+name: Build IPA
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+concurrency:
+  group: ios-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-ipa:
+    runs-on: macos-15
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Build Release for iOS (unsigned)
+        run: |
+          set -euo pipefail
+          xcodebuild \
+            -project Subscriptions.xcodeproj \
+            -scheme Subscriptions \
+            -configuration Release \
+            -destination "generic/platform=iOS" \
+            -derivedDataPath DerivedData \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Package IPA
+        run: |
+          set -euo pipefail
+          APP_PATH=$(find DerivedData -name "*.app" -path "*Release-iphoneos*" | head -n 1)
+          if [ -z "$APP_PATH" ]; then
+            echo "Release .app not found"
+            find DerivedData -name "*.app"
+            exit 1
+          fi
+          echo "Found app: $APP_PATH"
+          mkdir -p Payload
+          cp -r "$APP_PATH" Payload/
+          zip -qr Subscriptions-unsigned.ipa Payload
+          rm -rf Payload
+          ls -lh Subscriptions-unsigned.ipa
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Subscriptions-ipa-${{ github.sha }}
+          path: Subscriptions-unsigned.ipa
+          retention-days: 30
+          if-no-files-found: error

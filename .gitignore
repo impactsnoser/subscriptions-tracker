@@ -1,0 +1,19 @@
+# Xcode / iOS
+DerivedData/
+build/
+*.xcodeproj
+*.xcworkspace
+xcuserdata/
+*.xcuserstate
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# macOS
+.DS_Store
+
+# Secrets (не коммитить сертификаты)
+*.p12
+*.mobileprovision
+.env
+secrets/

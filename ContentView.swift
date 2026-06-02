@@ -6,6 +6,7 @@ struct ContentView: View {
     @Query(sort: \Subscription.name) private var allSubscriptions: [Subscription]
     
     @State private var showingAddSheet = false
+    @State private var subscriptionToEdit: Subscription?
     @State private var selectedTab = 0
     @State private var appeared = false
     
@@ -106,6 +107,12 @@ struct ContentView: View {
             }
             .sheet(isPresented: $showingAddSheet) {
                 AddSubscriptionView()
+                    .presentationDetents([.large])
+                    .presentationDragIndicator(.visible)
+                    .presentationCornerRadius(28)
+            }
+            .sheet(item: $subscriptionToEdit) { subscription in
+                SubscriptionEditorView(subscription: subscription)
                     .presentationDetents([.large])
                     .presentationDragIndicator(.visible)
                     .presentationCornerRadius(28)
@@ -266,6 +273,17 @@ struct ContentView: View {
         }
     }
     
+    private func subscriptionRow(_ subscription: Subscription) -> some View {
+        SubscriptionRow(subscription: subscription)
+            .listRowBackground(Color.clear)
+            .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+            .contentShape(Rectangle())
+            .onLongPressGesture(minimumDuration: 0.45) {
+                Haptics.medium()
+                subscriptionToEdit = subscription
+            }
+    }
+    
     private func categoryAccent(_ category: SubscriptionCategory) -> Color {
         switch category {
         case .entertainment: return .cyan
@@ -279,9 +297,16 @@ struct ContentView: View {
     
     @ViewBuilder
     private func activeSubscriptionRow(_ subscription: Subscription) -> some View {
-        SubscriptionRow(subscription: subscription)
-            .listRowBackground(Color.clear)
-            .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+        subscriptionRow(subscription)
+            .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                Button {
+                    Haptics.light()
+                    subscriptionToEdit = subscription
+                } label: {
+                    Label("Изменить", systemImage: "pencil")
+                }
+                .tint(AppTheme.accent)
+            }
             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                 Button(role: .destructive) {
                     Haptics.medium()
@@ -306,9 +331,16 @@ struct ContentView: View {
     
     @ViewBuilder
     private func archivedSubscriptionRow(_ subscription: Subscription) -> some View {
-        SubscriptionRow(subscription: subscription)
-            .listRowBackground(Color.clear)
-            .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+        subscriptionRow(subscription)
+            .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                Button {
+                    Haptics.light()
+                    subscriptionToEdit = subscription
+                } label: {
+                    Label("Изменить", systemImage: "pencil")
+                }
+                .tint(AppTheme.accent)
+            }
             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                 Button(role: .destructive) {
                     Haptics.medium()

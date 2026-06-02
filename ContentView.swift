@@ -74,7 +74,7 @@ struct ContentView: View {
                     .animation(AppTheme.spring, value: selectedTab)
                 }
             }
-            .navigationTitle("Подписки")
+            .navigationTitle("субашычка")
             .navigationBarTitleDisplayMode(.large)
             .toolbarBackground(.hidden, for: .navigationBar)
             .toolbarColorScheme(.dark, for: .navigationBar)

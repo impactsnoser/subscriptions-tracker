@@ -25,12 +25,15 @@ targets:
           - "scripts"
           - "DerivedData"
           - "*.ipa"
+          - "Assets.xcassets"
+      - path: Assets.xcassets
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.subscriptions.tracker
         PRODUCT_NAME: Subscriptions
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         GENERATE_INFOPLIST_FILE: YES
-        INFOPLIST_KEY_CFBundleDisplayName: "Подписки"
+        INFOPLIST_KEY_CFBundleDisplayName: "субашычка"
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: true
         INFOPLIST_KEY_UILaunchScreen_Generation: true
         INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait

@@ -2,6 +2,22 @@
 
 iOS 17+ приложение для учёта подписок с брендовыми иконками популярных сервисов в РФ.
 
+## Залить на GitHub (PowerShell)
+
+Установлены Git и GitHub CLI. В терминале:
+
+```powershell
+cd "c:\Users\pay9m\Downloads\ПИЗДЕЦ"
+gh auth login
+.\scripts\push-to-github.ps1
+```
+
+Или вручную после `gh auth login`:
+
+```powershell
+gh repo create subscriptions-tracker-ios --public --source=. --remote=origin --push
+```
+
 ## Сборка IPA через GitHub Actions
 
 1. Запушь репозиторий на GitHub.

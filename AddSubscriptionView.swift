@@ -10,56 +10,234 @@ struct AddSubscriptionView: View {
     @State private var selectedCycle = "Месяц"
     @State private var selectedCategory: SubscriptionCategory = .other
     @State private var billingDate = Date()
+    @State private var appeared = false
     
     let cycles = ["Месяц", "Год"]
     
+    private var previewSubscription: Subscription {
+        Subscription(
+            name: name.isEmpty ? "Новая подписка" : name,
+            price: Double(price) ?? 0,
+            nextBillingDate: billingDate,
+            cycle: selectedCycle,
+            category: selectedCategory
+        )
+    }
+    
+    private var canSave: Bool {
+        !name.trimmingCharacters(in: .whitespaces).isEmpty && Double(price) != nil
+    }
+    
     var body: some View {
         NavigationStack {
-            Form {
-                Section("Основное") {
-                    TextField("Название (например, Яндекс Плюс)", text: $name)
-                    TextField("Стоимость", text: $price)
-                        .keyboardType(.decimalPad)
-                }
+            ZStack {
+                AnimatedMeshBackground()
                 
-                Section("Детали") {
-                    Picker("Период", selection: $selectedCycle) {
-                        ForEach(cycles, id: \.self) { Text($0) }
-                    }
-                    .pickerStyle(.segmented)
-                    
-                    Picker("Категория", selection: $selectedCategory) {
-                        ForEach(SubscriptionCategory.allCases, id: \.self) { category in
-                            Text(category.rawValue).tag(category)
+                ScrollView {
+                    VStack(spacing: 24) {
+                        previewCard
+                            .padding(.top, 8)
+                        
+                        formSection(title: "Основное", icon: "textformat") {
+                            styledField("Название", text: $name, prompt: "Яндекс Плюс, Telegram…")
+                            styledField("Стоимость", text: $price, prompt: "299")
+                                .keyboardType(.decimalPad)
+                        }
+                        
+                        formSection(title: "Детали", icon: "slider.horizontal.3") {
+                            VStack(alignment: .leading, spacing: 10) {
+                                Text("Период")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(.white.opacity(0.5))
+                                
+                                HStack(spacing: 8) {
+                                    ForEach(cycles, id: \.self) { cycle in
+                                        cycleChip(cycle)
+                                    }
+                                }
+                            }
+                            
+                            VStack(alignment: .leading, spacing: 10) {
+                                Text("Категория")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(.white.opacity(0.5))
+                                
+                                ScrollView(.horizontal, showsIndicators: false) {
+                                    HStack(spacing: 8) {
+                                        ForEach(SubscriptionCategory.allCases, id: \.self) { category in
+                                            categoryChip(category)
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            VStack(alignment: .leading, spacing: 10) {
+                                Text("Дата списания")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(.white.opacity(0.5))
+                                
+                                DatePicker("", selection: $billingDate, displayedComponents: .date)
+                                    .datePickerStyle(.graphical)
+                                    .tint(AppTheme.accent)
+                                    .colorScheme(.dark)
+                                    .padding(12)
+                                    .glassCard(cornerRadius: 16)
+                            }
                         }
                     }
-                    
-                    DatePicker("Дата списания", selection: $billingDate, displayedComponents: .date)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 32)
+                    .opacity(appeared ? 1 : 0)
+                    .offset(y: appeared ? 0 : 24)
                 }
             }
             .navigationTitle("Новая подписка")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(.hidden, for: .navigationBar)
+            .toolbarColorScheme(.dark, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Отмена") { dismiss() }
+                    Button("Отмена") {
+                        Haptics.light()
+                        dismiss()
+                    }
+                    .foregroundStyle(.white.opacity(0.7))
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Добавить") {
-                        if let finalPrice = Double(price), !name.isEmpty {
-                            let newSub = Subscription(
-                                name: name,
-                                price: finalPrice,
-                                nextBillingDate: billingDate,
-                                cycle: selectedCycle,
-                                category: selectedCategory
-                            )
-                            modelContext.insert(newSub)
-                            dismiss()
-                        }
+                        save()
                     }
-                    .disabled(name.isEmpty || price.isEmpty)
+                    .fontWeight(.bold)
+                    .foregroundStyle(canSave ? AppTheme.accentSecondary : .white.opacity(0.3))
+                    .disabled(!canSave)
+                }
+            }
+            .onAppear {
+                withAnimation(AppTheme.springBouncy.delay(0.08)) {
+                    appeared = true
                 }
             }
         }
+    }
+    
+    private var previewCard: some View {
+        VStack(spacing: 12) {
+            Text("Превью")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.white.opacity(0.45))
+                .frame(maxWidth: .infinity, alignment: .leading)
+            
+            SubscriptionRow(subscription: previewSubscription)
+                .allowsHitTesting(false)
+        }
+        .animation(AppTheme.spring, value: name)
+        .animation(AppTheme.spring, value: price)
+        .animation(AppTheme.spring, value: selectedCategory)
+    }
+    
+    private func formSection<Content: View>(title: String, icon: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Label(title, systemImage: icon)
+                .font(.headline.weight(.bold))
+                .foregroundStyle(.white)
+            
+            VStack(spacing: 14) {
+                content()
+            }
+            .padding(18)
+            .glassCard(cornerRadius: 22)
+        }
+    }
+    
+    private func styledField(_ title: String, text: Binding<String>, prompt: String) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.white.opacity(0.5))
+            TextField("", text: text, prompt: Text(prompt).foregroundStyle(.white.opacity(0.25)))
+                .font(.body.weight(.medium))
+                .foregroundStyle(.white)
+                .padding(14)
+                .background(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .fill(.white.opacity(0.06))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .strokeBorder(.white.opacity(0.1), lineWidth: 1)
+                        )
+                )
+        }
+    }
+    
+    private func cycleChip(_ cycle: String) -> some View {
+        Button {
+            Haptics.light()
+            withAnimation(AppTheme.spring) { selectedCycle = cycle }
+        } label: {
+            Text(cycle)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(selectedCycle == cycle ? .white : .white.opacity(0.55))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .background {
+                    if selectedCycle == cycle {
+                        Capsule()
+                            .fill(
+                                LinearGradient(
+                                    colors: [AppTheme.accent, AppTheme.accentSecondary],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                    } else {
+                        Capsule().fill(.white.opacity(0.08))
+                    }
+                }
+        }
+        .buttonStyle(.plain)
+    }
+    
+    private func categoryChip(_ category: SubscriptionCategory) -> some View {
+        Button {
+            Haptics.light()
+            withAnimation(AppTheme.spring) { selectedCategory = category }
+        } label: {
+            Text(category.rawValue)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(selectedCategory == category ? .white : .white.opacity(0.55))
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background {
+                    if selectedCategory == category {
+                        Capsule()
+                            .fill(
+                                LinearGradient(
+                                    colors: [AppTheme.accent.opacity(0.9), AppTheme.accentSecondary.opacity(0.9)],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                    } else {
+                        Capsule().fill(.white.opacity(0.08))
+                    }
+                }
+        }
+        .buttonStyle(.plain)
+    }
+    
+    private func save() {
+        guard let finalPrice = Double(price.replacingOccurrences(of: ",", with: ".")),
+              !name.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+        
+        Haptics.success()
+        let newSub = Subscription(
+            name: name.trimmingCharacters(in: .whitespaces),
+            price: finalPrice,
+            nextBillingDate: billingDate,
+            cycle: selectedCycle,
+            category: selectedCategory
+        )
+        modelContext.insert(newSub)
+        dismiss()
     }
 }

@@ -3,10 +3,11 @@ import SwiftData
 
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
-    @Query private var allSubscriptions: [Subscription]
+    @Query(sort: \Subscription.name) private var allSubscriptions: [Subscription]
     
     @State private var showingAddSheet = false
-    @State private var selectedTab = 0 // 0 - Активные, 1 - Архив
+    @State private var selectedTab = 0
+    @State private var appeared = false
     
     var activeSubscriptions: [Subscription] {
         allSubscriptions.filter { $0.isActive }
@@ -16,7 +17,6 @@ struct ContentView: View {
         allSubscriptions.filter { !$0.isActive }
     }
     
-    /// Секции по категориям — только если активных подписок больше трёх
     private var shouldGroupActiveByCategory: Bool {
         activeSubscriptions.count > 3
     }
@@ -47,37 +47,73 @@ struct ContentView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Color(.systemGroupedBackground).ignoresSafeArea()
+                AnimatedMeshBackground()
                 
-                VStack(spacing: 20) {
-                    Picker("Режим", selection: $selectedTab) {
-                        Text("Активные").tag(0)
-                        Text("Архив (\(archivedSubscriptions.count))").tag(1)
-                    }
-                    .pickerStyle(.segmented)
-                    .padding(.horizontal)
+                VStack(spacing: 0) {
+                    PremiumTabPicker(selection: $selectedTab, archiveCount: archivedSubscriptions.count)
+                        .padding(.top, 8)
+                        .padding(.bottom, 12)
+                        .opacity(appeared ? 1 : 0)
+                        .offset(y: appeared ? 0 : -12)
                     
-                    if selectedTab == 0 {
-                        activeTabContent
-                    } else {
-                        archiveTabContent
+                    ZStack {
+                        if selectedTab == 0 {
+                            activeTabContent
+                                .transition(.asymmetric(
+                                    insertion: .move(edge: .leading).combined(with: .opacity),
+                                    removal: .move(edge: .leading).combined(with: .opacity)
+                                ))
+                        } else {
+                            archiveTabContent
+                                .transition(.asymmetric(
+                                    insertion: .move(edge: .trailing).combined(with: .opacity),
+                                    removal: .move(edge: .trailing).combined(with: .opacity)
+                                ))
+                        }
                     }
+                    .animation(AppTheme.spring, value: selectedTab)
                 }
             }
-            .navigationTitle("Мои подписки")
+            .navigationTitle("Подписки")
+            .navigationBarTitleDisplayMode(.large)
+            .toolbarBackground(.hidden, for: .navigationBar)
+            .toolbarColorScheme(.dark, for: .navigationBar)
             .preferredColorScheme(.dark)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
+                        Haptics.medium()
                         showingAddSheet = true
                     } label: {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.title2)
+                        Image(systemName: "plus")
+                            .font(.body.weight(.bold))
+                            .foregroundStyle(.white)
+                            .frame(width: 40, height: 40)
+                            .background {
+                                Circle()
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [AppTheme.accent, AppTheme.accentSecondary],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        )
+                                    )
+                                    .shadow(color: AppTheme.glow.opacity(0.5), radius: 10, y: 4)
+                            }
+                            .symbolEffect(.bounce, value: showingAddSheet)
                     }
                 }
             }
             .sheet(isPresented: $showingAddSheet) {
                 AddSubscriptionView()
+                    .presentationDetents([.large])
+                    .presentationDragIndicator(.visible)
+                    .presentationCornerRadius(28)
+            }
+            .onAppear {
+                withAnimation(AppTheme.springBouncy.delay(0.05)) {
+                    appeared = true
+                }
             }
         }
     }
@@ -86,16 +122,17 @@ struct ContentView: View {
     
     @ViewBuilder
     private var activeTabContent: some View {
-        VStack(spacing: 16) {
-            budgetCard
+        VStack(spacing: 12) {
+            BudgetHeroCard(totalMonthly: totalMonthlyExpenses, activeCount: activeSubscriptions.count)
+                .opacity(appeared ? 1 : 0)
+                .offset(y: appeared ? 0 : 20)
             
             if activeSubscriptions.isEmpty {
-                ContentUnavailableView(
-                    "Нет подписок",
-                    systemImage: "creditcard",
-                    description: Text("Нажмите +, чтобы добавить первую подписку")
+                emptyState(
+                    title: "Пока пусто",
+                    subtitle: "Добавь первую подписку — посчитаем траты за тебя",
+                    icon: "sparkles"
                 )
-                .frame(maxHeight: .infinity)
             } else {
                 List {
                     if shouldGroupActiveByCategory {
@@ -128,12 +165,11 @@ struct ContentView: View {
     @ViewBuilder
     private var archiveTabContent: some View {
         if archivedSubscriptions.isEmpty {
-            ContentUnavailableView(
-                "Архив пуст",
-                systemImage: "archivebox",
-                description: Text("Сюда будут попадать отключенные подписки")
+            emptyState(
+                title: "Архив пуст",
+                subtitle: "Отключённые подписки появятся здесь",
+                icon: "archivebox"
             )
-            .frame(maxHeight: .infinity)
         } else {
             List {
                 ForEach(archivedSubscriptions) { subscription in
@@ -148,42 +184,74 @@ struct ContentView: View {
         }
     }
     
-    // MARK: - Общие компоненты
+    // MARK: - Компоненты
     
-    private var budgetCard: some View {
-        VStack(spacing: 4) {
-            Text("Траты в месяц")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-            Text("\(Int(totalMonthlyExpenses)) ₽")
-                .font(.system(.largeTitle, design: .rounded))
-                .fontWeight(.black)
+    private func emptyState(title: String, subtitle: String, icon: String) -> some View {
+        VStack(spacing: 20) {
+            Spacer()
+            ZStack {
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            colors: [AppTheme.accent.opacity(0.35), .clear],
+                            center: .center,
+                            startRadius: 0,
+                            endRadius: 80
+                        )
+                    )
+                    .frame(width: 140, height: 140)
+                
+                Image(systemName: icon)
+                    .font(.system(size: 48, weight: .medium))
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [AppTheme.accent, AppTheme.accentSecondary],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .symbolEffect(.pulse.byLayer, options: .repeating)
+            }
+            
+            VStack(spacing: 8) {
+                Text(title)
+                    .font(.title2.weight(.bold))
+                    .foregroundStyle(.white)
+                Text(subtitle)
+                    .font(.subheadline)
+                    .foregroundStyle(.white.opacity(0.55))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 40)
+            }
+            Spacer()
         }
-        .frame(maxWidth: .infinity)
-        .padding()
-        .background(Color(.secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 20))
-        .padding(.horizontal)
+        .frame(maxHeight: .infinity)
     }
     
     private func categorySectionHeader(_ category: SubscriptionCategory, count: Int) -> some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 10) {
             Image(systemName: categoryIcon(category))
-                .font(.caption.weight(.semibold))
+                .font(.caption.weight(.bold))
                 .foregroundStyle(categoryAccent(category))
+                .frame(width: 28, height: 28)
+                .background(categoryAccent(category).opacity(0.2))
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            
             Text(category.rawValue)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.secondary)
+                .font(.subheadline.weight(.bold))
+                .foregroundStyle(.white.opacity(0.85))
+            
             Spacer()
+            
             Text("\(count)")
-                .font(.caption.weight(.medium))
-                .foregroundStyle(.tertiary)
+                .font(.caption2.weight(.bold))
+                .foregroundStyle(.white.opacity(0.7))
                 .padding(.horizontal, 8)
-                .padding(.vertical, 2)
-                .background(Color(.tertiarySystemFill))
-                .clipShape(Capsule())
+                .padding(.vertical, 4)
+                .background(Capsule().fill(.white.opacity(0.1)))
         }
-        .padding(.top, 4)
+        .padding(.top, 8)
+        .padding(.bottom, 4)
         .textCase(nil)
     }
     
@@ -201,10 +269,10 @@ struct ContentView: View {
     private func categoryAccent(_ category: SubscriptionCategory) -> Color {
         switch category {
         case .entertainment: return .cyan
-        case .work: return .brown
+        case .work: return .orange
         case .gaming: return .green
-        case .vpn: return .gray
-        case .utility: return .indigo
+        case .vpn: return .indigo
+        case .utility: return .mint
         case .other: return .secondary
         }
     }
@@ -214,15 +282,27 @@ struct ContentView: View {
         SubscriptionRow(subscription: subscription)
             .listRowBackground(Color.clear)
             .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+            .scrollTransition(.animated(.spring(response: 0.4, dampingFraction: 0.8))) { content, phase in
+                content
+                    .scaleEffect(phase.isIdentity ? 1 : 0.94)
+                    .opacity(phase.isIdentity ? 1 : 0.55)
+                    .blur(radius: phase.isIdentity ? 0 : 2)
+            }
             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                 Button(role: .destructive) {
-                    modelContext.delete(subscription)
+                    Haptics.medium()
+                    withAnimation(AppTheme.spring) {
+                        modelContext.delete(subscription)
+                    }
                 } label: {
                     Label("Удалить", systemImage: "trash")
                 }
                 
                 Button {
-                    subscription.isActive = false
+                    Haptics.light()
+                    withAnimation(AppTheme.spring) {
+                        subscription.isActive = false
+                    }
                 } label: {
                     Label("В архив", systemImage: "archivebox")
                 }
@@ -235,15 +315,26 @@ struct ContentView: View {
         SubscriptionRow(subscription: subscription)
             .listRowBackground(Color.clear)
             .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+            .scrollTransition(.animated(.spring(response: 0.4, dampingFraction: 0.8))) { content, phase in
+                content
+                    .scaleEffect(phase.isIdentity ? 1 : 0.94)
+                    .opacity(phase.isIdentity ? 1 : 0.55)
+            }
             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                 Button(role: .destructive) {
-                    modelContext.delete(subscription)
+                    Haptics.medium()
+                    withAnimation(AppTheme.spring) {
+                        modelContext.delete(subscription)
+                    }
                 } label: {
                     Label("Удалить", systemImage: "trash")
                 }
                 
                 Button {
-                    subscription.isActive = true
+                    Haptics.success()
+                    withAnimation(AppTheme.springBouncy) {
+                        subscription.isActive = true
+                    }
                 } label: {
                     Label("Вернуть", systemImage: "arrow.uturn.backward")
                 }
